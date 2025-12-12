@@ -1,0 +1,17 @@
+/*
+ * Copyright (c) 2025 Aeybel Varghese <aeybelvarghese@gmail.com>
+ *
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+#include <ti/tm4c123x.dtsi>
+
+#include <mem.h>
+
+&sram0 {
+	reg = <0x20000000 DT_SIZE_K(32)>;
+};
+
+&flash0 {
+	reg = <0x00000000 DT_SIZE_K(256)>;
+};
