@@ -1,0 +1,11 @@
+# Copyright (c) 2025 Aeybel Varghese <aeybelvarghese@gmail.com>
+#
+# SPDX-License-Identifier: Apache-2.0
+
+config SOC_SERIES_TM4C123X
+	select ARM
+	select CPU_CORTEX_M4
+	select CPU_CORTEX_M_HAS_SYSTICK
+	select CPU_HAS_ARM_MPU
+	select CPU_HAS_FPU
+	select CPU_CORTEX_M_HAS_DWT

@@ -1,0 +1,6 @@
+family:
+  - name: ti_tm4c
+    series:
+      - name: tm4c123x
+        socs:
+          - name: tm4c123gh6pm

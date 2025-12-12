@@ -1,0 +1,20 @@
+# Copyright (c) 2025 Aeybel Varghese <aeybelvarghese@gmail.com>
+#
+# SPDX-License-Identifier: Apache-2.0
+
+if SOC_SERIES_TM4C123X
+
+config NUM_IRQS
+	default 139
+
+config SYS_CLOCK_HW_CYCLES_PER_SEC
+	default 16000000
+
+if UART_STELLARIS
+
+config UART_STELLARIS_PORT_0
+	default y
+
+endif # UART_STELLARIS
+
+endif # SOC_SERIES_TM4C123X
