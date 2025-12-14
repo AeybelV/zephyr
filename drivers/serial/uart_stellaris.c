@@ -4,6 +4,7 @@
 
 /*
  * Copyright (c) 2013-2015 Wind River Systems, Inc.
+ * Copyright (c) 2025 Aeybel Varghese <aeybelvarghese@gmail.com>
  *
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -25,6 +26,7 @@
 #include <zephyr/sys/__assert.h>
 #include <soc.h>
 #include <zephyr/init.h>
+#include <zephyr/drivers/clock_control.h>
 #include <zephyr/drivers/uart.h>
 #include <zephyr/linker/sections.h>
 #include <zephyr/irq.h>
@@ -70,7 +72,13 @@ struct _uart {
 
 struct uart_stellaris_config {
 	volatile struct _uart *uart;
+#ifdef CONFIG_CLOCK_CONTROL
+	const struct device *clk;
+	const struct tm4c_clk_id clk_id;
+#else
 	uint32_t sys_clk_freq;
+#endif
+
 #ifdef CONFIG_UART_INTERRUPT_DRIVEN
 	uart_irq_config_func_t irq_config_func;
 #endif
@@ -224,9 +232,28 @@ static int uart_stellaris_init(const struct device *dev)
 {
 	struct uart_stellaris_dev_data_t *data = dev->data;
 	const struct uart_stellaris_config *config = dev->config;
+
+	uint32_t sys_clk_freq;
+
+#ifdef CONFIG_CLOCK_CONTROL
+	if (!device_is_ready(config->clk)) {
+		return -ENODEV;
+	}
+
+	int ret = clock_control_on(config->clk, (clock_control_subsys_t)&config->clk_id);
+
+	if (ret) {
+		return ret;
+	}
+
+	clock_control_get_rate(config->clk, NULL, &sys_clk_freq);
+#else
+	sys_clk_freq = config->sys_clk_freq;
+#endif
+
+	/* Proceed with initializing the peripheral */
 	disable(dev);
-	baudrate_set(dev, data->baud_rate,
-		     config->sys_clk_freq);
+	baudrate_set(dev, data->baud_rate, sys_clk_freq);
 	line_control_defaults_set(dev);
 	enable(dev);
 
@@ -548,7 +575,6 @@ static void uart_stellaris_isr(const struct device *dev)
 
 #endif /* CONFIG_UART_INTERRUPT_DRIVEN */
 
-
 static DEVICE_API(uart, uart_stellaris_driver_api) = {
 	.poll_in = uart_stellaris_poll_in,
 	.poll_out = uart_stellaris_poll_out,
@@ -572,120 +598,49 @@ static DEVICE_API(uart, uart_stellaris_driver_api) = {
 #endif
 };
 
-
-#ifdef CONFIG_UART_STELLARIS_PORT_0
-
 #ifdef CONFIG_UART_INTERRUPT_DRIVEN
-static void irq_config_func_0(const struct device *port);
+#define UART_STELLARIS_IRQ_CFG_FUNC(inst)                                                          \
+	static void uart_stellaris_irq_config_func_##inst##(const struct device *dev)              \
+	{                                                                                          \
+		IRQ_CONNECT(DT_INST_IRQN(##inst##), DT_INST_IRQ(inst, priority),                   \
+			    uart_stellaris_isr, DEVICE_DT_INST_GET(##inst), 0);                    \
+		irq_enable(DT_INST_IRQN(inst));                                                    \
+	}
+#else
+#define UART_STELLARIS_IRQ_CFG_FUNC(inst)
 #endif
 
-static const struct uart_stellaris_config uart_stellaris_dev_cfg_0 = {
-	.uart = (volatile struct _uart *)DT_INST_REG_ADDR(0),
-	.sys_clk_freq = DT_INST_PROP_BY_PHANDLE(0, clocks, clock_frequency),
-
-#ifdef CONFIG_UART_INTERRUPT_DRIVEN
-	.irq_config_func = irq_config_func_0,
-#endif
-};
-
-static struct uart_stellaris_dev_data_t uart_stellaris_dev_data_0 = {
-	.baud_rate = DT_INST_PROP(0, current_speed),
-};
-
-DEVICE_DT_INST_DEFINE(0,
-		    uart_stellaris_init,
-		    NULL,
-		    &uart_stellaris_dev_data_0, &uart_stellaris_dev_cfg_0,
-		    PRE_KERNEL_1, CONFIG_SERIAL_INIT_PRIORITY,
-		    &uart_stellaris_driver_api);
-
-#ifdef CONFIG_UART_INTERRUPT_DRIVEN
-static void irq_config_func_0(const struct device *dev)
-{
-	IRQ_CONNECT(DT_INST_IRQN(0),
-		    DT_INST_IRQ(0, priority),
-		    uart_stellaris_isr, DEVICE_DT_INST_GET(0),
-		    0);
-	irq_enable(DT_INST_IRQN(0));
-}
+#ifdef CONFIG_CLOCK_CONTROL
+#define UART_STELLARIS_CLK_CFG_INIT(inst) TM4C_CLK_ID_FROM_INST(inst)
+#else
+#define UART_STELLARIS_CLK_CFG_INIT(inst)
 #endif
 
-#endif /* CONFIG_UART_STELLARIS_PORT_0 */
+#define UART_STELLARIS_DATA_INIT(inst)                                                             \
+	static struct uart_stellaris_dev_data_t uart_stellaris_data_##inst = {                     \
+		.baud_rate = DT_INST_PROP_OR(inst, current_speed, 115200),                         \
+	};
 
-#ifdef CONFIG_UART_STELLARIS_PORT_1
+#define UART_STELLARIS_CLK_FIELDS(inst)                                                            \
+	COND_CODE_1(CONFIG_CLOCK_CONTROL, \
+		(.clk = DEVICE_DT_GET(DT_INST_CLOCKS_CTLR(inst)), \
+		 .clk_id = tm4c_clk_id_##inst,), \
+		(.sys_clk_freq = DT_INST_PROP_BY_PHANDLE(inst, clocks, clock_frequency)))
 
-#ifdef CONFIG_UART_INTERRUPT_DRIVEN
-static void irq_config_func_1(const struct device *port);
-#endif
+#define UART_STELLARIS_CFG_INIT(inst)                                                              \
+	static const struct uart_stellaris_config uart_stellaris_cfg_##inst = {                    \
+		.uart = (volatile struct _uart *)DT_INST_REG_ADDR(inst),                           \
+		UART_STELLARIS_CLK_FIELDS(inst) COND_CODE_1(CONFIG_UART_INTERRUPT_DRIVEN,	   \
+		(.irq_config_func = uart_stellaris_irq_config_func_##inst,), ()) };
 
-static struct uart_stellaris_config uart_stellaris_dev_cfg_1 = {
-	.uart = (volatile struct _uart *)DT_INST_REG_ADDR(1),
-	.sys_clk_freq = DT_INST_PROP_BY_PHANDLE(1, clocks, clock_frequency),
+#define UART_STELLARIS_DEVICE_INIT(inst)                                                           \
+	UART_STELLARIS_IRQ_CFG_FUNC(inst)                                                          \
+	UART_STELLARIS_DATA_INIT(inst)                                                             \
+	UART_STELLARIS_CLK_CFG_INIT(inst)                                                          \
+	UART_STELLARIS_CFG_INIT(inst)                                                              \
+                                                                                                   \
+	DEVICE_DT_INST_DEFINE(inst, uart_stellaris_init, NULL, &uart_stellaris_data_##inst,        \
+			      &uart_stellaris_cfg_##inst, PRE_KERNEL_1,                            \
+			      CONFIG_SERIAL_INIT_PRIORITY, &uart_stellaris_driver_api);
 
-#ifdef CONFIG_UART_INTERRUPT_DRIVEN
-	.irq_config_func = irq_config_func_1,
-#endif
-};
-
-static struct uart_stellaris_dev_data_t uart_stellaris_dev_data_1 = {
-	.baud_rate = DT_INST_PROP(1, current_speed),
-};
-
-DEVICE_DT_INST_DEFINE(1,
-		    uart_stellaris_init,
-		    NULL,
-		    &uart_stellaris_dev_data_1, &uart_stellaris_dev_cfg_1,
-		    PRE_KERNEL_1, CONFIG_SERIAL_INIT_PRIORITY,
-		    &uart_stellaris_driver_api);
-
-#ifdef CONFIG_UART_INTERRUPT_DRIVEN
-static void irq_config_func_1(const struct device *dev)
-{
-	IRQ_CONNECT(DT_INST_IRQN(1),
-		    DT_INST_IRQ(1, priority),
-		    uart_stellaris_isr, DEVICE_DT_INST_GET(1),
-		    0);
-	irq_enable(DT_INST_IRQN(1));
-}
-#endif
-
-#endif /* CONFIG_UART_STELLARIS_PORT_1 */
-
-#ifdef CONFIG_UART_STELLARIS_PORT_2
-
-#ifdef CONFIG_UART_INTERRUPT_DRIVEN
-static void irq_config_func_2(const struct device *port);
-#endif
-
-static const struct uart_stellaris_config uart_stellaris_dev_cfg_2 = {
-	.uart = (volatile struct _uart *)DT_INST_REG_ADDR(2),
-	.sys_clk_freq = DT_INST_PROP_BY_PHANDLE(2, clocks, clock_frequency),
-
-#ifdef CONFIG_UART_INTERRUPT_DRIVEN
-	.irq_config_func = irq_config_func_2,
-#endif
-};
-
-static struct uart_stellaris_dev_data_t uart_stellaris_dev_data_2 = {
-	.baud_rate = DT_INST_PROP(2, current_speed),
-};
-
-DEVICE_DT_INST_DEFINE(2,
-		    uart_stellaris_init,
-		    NULL,
-		    &uart_stellaris_dev_data_2, &uart_stellaris_dev_cfg_2,
-		    PRE_KERNEL_1, CONFIG_SERIAL_INIT_PRIORITY,
-		    &uart_stellaris_driver_api);
-
-#ifdef CONFIG_UART_INTERRUPT_DRIVEN
-static void irq_config_func_2(const struct device *dev)
-{
-	IRQ_CONNECT(DT_INST_IRQN(2),
-		    DT_INST_IRQ(2, priority),
-		    uart_stellaris_isr, DEVICE_DT_INST_GET(2),
-		    0);
-	irq_enable(DT_INST_IRQN(2));
-}
-#endif
-
-#endif /* CONFIG_UART_STELLARIS_PORT_2 */
+DT_INST_FOREACH_STATUS_OKAY(UART_STELLARIS_DEVICE_INIT)
