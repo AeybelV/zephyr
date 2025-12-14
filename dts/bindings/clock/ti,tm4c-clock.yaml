@@ -1,0 +1,28 @@
+# Copyright (c) 2025 Aeybel Varghese <aeybelvarghese@gmail.com>
+#
+# SPDX-License-Identifier: Apache-2.0
+
+description: TI TM4C SYSCTL clock controller using per-peripheral RCGC*/PR* registers
+
+compatible: "ti,tm4c-clock"
+
+include:
+  - clock-controller.yaml
+  - base.yaml
+
+properties:
+  syscon:
+    type: phandle
+    required: true
+    description: Phandle to the SYSCTL syscon node that contains the clock gating registers.
+
+  clock-frequency:
+    type: int
+    description: System clock frequency in Hz (optional; used by get_rate()).
+
+  "#clock-cells":
+    const: 2
+
+clock-cells:
+  - offset
+  - bit

@@ -9,6 +9,8 @@
 #include <freq.h>
 #include <mem.h>
 
+#include <zephyr/dt-bindings/clock/ti_tm4c_clock.h>
+
 / {
 	cpus {
 		#address-cells = <1>;
@@ -32,6 +34,20 @@
 	};
 
 	soc {
+
+		sysctl: sysctl@400fe000 {
+			compatible = "ti,tm4c-sysctl", "syscon";
+			reg = <0x400fe000 DT_SIZE_K(4)>;
+			status = "okay";
+		};
+
+		clkctl: clock-controller {
+			compatible = "ti,tm4c-clock";
+			syscon = <&sysctl>;
+			clock-frequency = <DT_FREQ_M(16)>;
+			#clock-cells = <2>;
+		};
+
 		flash-controller@400fd000 {
 			compatible = "ti,stellaris-flash-controller";
 			reg = <0x400fd000 DT_SIZE_K(64)>;
@@ -48,7 +64,7 @@
 		uart0: uart@4000c000 {
 			compatible = "ti,stellaris-uart";
 			reg = <0x4000c000 DT_SIZE_K(4)>;
-			clocks = <&sysclk>;
+			clocks = <&clkctl TM4C_CLK_UART(0)>;
 			interrupts = <5 3>;
 			status = "disabled";
 		};
@@ -56,7 +72,7 @@
 		uart1: uart@4000d000 {
 			compatible = "ti,stellaris-uart";
 			reg = <0x4000d000 DT_SIZE_K(4)>;
-			clocks = <&sysclk>;
+			clocks = <&clkctl TM4C_CLK_UART(1)>;
 			interrupts = <6 3>;
 			status = "disabled";
 		};
@@ -64,7 +80,7 @@
 		uart2: uart@4000e000 {
 			compatible = "ti,stellaris-uart";
 			reg = <0x4000e000 DT_SIZE_K(4)>;
-			clocks = <&sysclk>;
+			clocks = <&clkctl TM4C_CLK_UART(2)>;
 			interrupts = <33 3>;
 			status = "disabled";
 		};
@@ -72,7 +88,7 @@
 		uart3: uart@4000f000 {
 			compatible = "ti,stellaris-uart";
 			reg = <0x4000f000 DT_SIZE_K(4)>;
-			clocks = <&sysclk>;
+			clocks = <&clkctl TM4C_CLK_UART(3)>;
 			interrupts = <59 3>;
 			status = "disabled";
 		};
@@ -80,7 +96,7 @@
 		uart4: uart@40010000 {
 			compatible = "ti,stellaris-uart";
 			reg = <0x40010000 DT_SIZE_K(4)>;
-			clocks = <&sysclk>;
+			clocks = <&clkctl TM4C_CLK_UART(4)>;
 			interrupts = <60 3>;
 			status = "disabled";
 		};
@@ -88,7 +104,7 @@
 		uart5: uart@40011000 {
 			compatible = "ti,stellaris-uart";
 			reg = <0x40011000 DT_SIZE_K(4)>;
-			clocks = <&sysclk>;
+			clocks = <&clkctl TM4C_CLK_UART(5)>;
 			interrupts = <61 3>;
 			status = "disabled";
 		};
@@ -96,7 +112,7 @@
 		uart6: uart@40012000 {
 			compatible = "ti,stellaris-uart";
 			reg = <0x40012000 DT_SIZE_K(4)>;
-			clocks = <&sysclk>;
+			clocks = <&clkctl TM4C_CLK_UART(6)>;
 			interrupts = <62 3>;
 			status = "disabled";
 		};
@@ -104,7 +120,7 @@
 		uart7: uart@40013000 {
 			compatible = "ti,stellaris-uart";
 			reg = <0x40013000 DT_SIZE_K(4)>;
-			clocks = <&sysclk>;
+			clocks = <&clkctl TM4C_CLK_UART(7)>;
 			interrupts = <63 3>;
 			status = "disabled";
 		};
@@ -114,6 +130,7 @@
 		gpioa: gpio@40004000 {
 			compatible = "ti,stellaris-gpio";
 			reg = <0x40004000 DT_SIZE_K(4)>;
+			clocks = <&clkctl TM4C_CLK_GPIO(0)>;
 			interrupts = <0 3>;
 			gpio-controller;
 			#gpio-cells = <2>;
@@ -123,6 +140,7 @@
 		gpiob: gpio@40005000 {
 			compatible = "ti,stellaris-gpio";
 			reg = <0x40005000 DT_SIZE_K(4)>;
+			clocks = <&clkctl TM4C_CLK_GPIO(1)>;
 			interrupts = <1 3>;
 			gpio-controller;
 			#gpio-cells = <2>;
@@ -132,6 +150,7 @@
 		gpioc: gpio@40006000 {
 			compatible = "ti,stellaris-gpio";
 			reg = <0x40006000 DT_SIZE_K(4)>;
+			clocks = <&clkctl TM4C_CLK_GPIO(2)>;
 			interrupts = <2 3>;
 			gpio-controller;
 			#gpio-cells = <2>;
@@ -141,6 +160,7 @@
 		gpiod: gpio@40007000 {
 			compatible = "ti,stellaris-gpio";
 			reg = <0x40007000 DT_SIZE_K(4)>;
+			clocks = <&clkctl TM4C_CLK_GPIO(3)>;
 			interrupts = <3 3>;
 			gpio-controller;
 			#gpio-cells = <2>;
@@ -150,6 +170,7 @@
 		gpioe: gpio@40024000 {
 			compatible = "ti,stellaris-gpio";
 			reg = <0x40024000 DT_SIZE_K(4)>;
+			clocks = <&clkctl TM4C_CLK_GPIO(4)>;
 			interrupts = <4 3>;
 			gpio-controller;
 			#gpio-cells = <2>;
@@ -159,6 +180,7 @@
 		gpiof: gpio@40025000 {
 			compatible = "ti,stellaris-gpio";
 			reg = <0x40025000 DT_SIZE_K(4)>;
+			clocks = <&clkctl TM4C_CLK_GPIO(5)>;
 			interrupts = <30 3>;
 			gpio-controller;
 			#gpio-cells = <2>;

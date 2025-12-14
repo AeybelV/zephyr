@@ -61,50 +61,6 @@
 #define RCGGPIO_PORTA_EN 0x00000001
 #define RCGGPIO_PORTF_EN 0x00100000
 
-#ifdef CONFIG_GPIO_STELLARIS
-
-/**
- * @brief Initializes UART0 by setting up clocks and configuring pin functionality
- */
-static void GPIO_PORTF_Init(void)
-{
-	RCGCGPIO_R |= 0x20;                /*  Enable Port F GPIO module */
-	GPIO_PORTF_LOCK_R = GPIO_LOCK_KEY; /*   unlock GPIO Port F Commit Register */
-	GPIO_PORTF_CR_R = 0x1F;            /*   enable commit for PF4-PF0 */
-	GPIO_PORTF_AMSEL_R &= ~0x1F;       /*   disable analog functionality on PF4-PF0 */
-	GPIO_PORTF_PCTL_R = 0x00000000;    /*   configure PF0-PF4 as GPIO */
-	GPIO_PORTF_DIR_R = 0x0E;           /*   make PF0 and PF4 in PF3-1 output */
-	GPIO_PORTF_AFSEL_R = 0;            /*   disable alt funct on PF0 and PF4 */
-	GPIO_PORTF_PUR_R = 0x11;           /*	enable weak pull-up on PF0 and PF4 */
-	GPIO_PORTF_DEN_R = 0x1F;           /*   enable digital I/O on PF0-PF4 */
-}
-
-/**
- * @brief To use the GPIO's on the TM4C, the peripheral clock must be enabled.
- * In the absence of properrclock control and pinctrl drivers for the platform,
- * this is a routine that performsthe clock and gpio setup manually to emphasize Zephyr
- * bringup on the MCU until those drivers get implemented.
- *
- * GPIO operations are implemented by the gpio_stellaris driver
- *
- * @return
- */
-static int tm4c_gpio_init(void)
-{
-
-	GPIO_PORTF_Init();
-
-	return 0;
-}
-
-/*
- * Initialize GPIO peripheral clocks and pins before stellaris driver setups
- *  TODO: This must be replaced with the usage of proper clock control and pinctrl drivers
- */
-SYS_INIT(tm4c_gpio_init, EARLY, CONFIG_KERNEL_INIT_PRIORITY_DEVICE);
-
-#endif /* CONFIG_GPIO_STELLARIS */
-
 #ifdef CONFIG_UART_STELLARIS
 
 #include <zephyr/drivers/uart.h>
@@ -114,10 +70,12 @@ SYS_INIT(tm4c_gpio_init, EARLY, CONFIG_KERNEL_INIT_PRIORITY_DEVICE);
  */
 static void UART0_Init(void)
 {
-	RCGCUART_R |= RCGCUART_UART0_EN; /*  Enable the UART module */
-	RCGCGPIO_R |= RCGGPIO_PORTA_EN;  /*  Enable Port A GPIO module */
-	GPIO_PORTA_AFSEL_R |= 0x03;      /*  Enable alt funct on PA1-0 */
-	GPIO_PORTA_DEN_R |= 0x03;        /*  Enable digital I/O on PA1-0 */
+	/* TODO: Until pinctrl is implemented, this clock for Port A must be enabled manually in the
+	 * RCGCPIO
+	 */
+	RCGCGPIO_R |= RCGGPIO_PORTA_EN; /*  Enable Port A GPIO module */
+	GPIO_PORTA_AFSEL_R |= 0x03;     /*  Enable alt funct on PA1-0 */
+	GPIO_PORTA_DEN_R |= 0x03;       /*  Enable digital I/O on PA1-0 */
 	GPIO_PORTA_PCTL_R =
 		(GPIO_PORTA_PCTL_R & 0xFFFFFF00) +
 		0x00000011; /*  Configure PA1-0 with their alternate function as UART0 TX/RX */

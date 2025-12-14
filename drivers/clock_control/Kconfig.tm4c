@@ -1,0 +1,7 @@
+config CLOCK_CONTROL_TM4C
+	bool "TI TM4C clock control (RCGC/PR gating)"
+	default y if SOC_FAMILY_TI_TM4C
+	depends on CLOCK_CONTROL
+	help
+	  Enables peripheral clock gating control for TI TM4C MCUs using
+	  SYSCTL RCGC* and PR* registers.
