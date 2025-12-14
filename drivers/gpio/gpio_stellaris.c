@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2018 Zilogic Systems.
+ * Copyright (c) 2025 Aeybel Varghese <aeybelvarghese@gmail.com>
  *
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -14,6 +15,7 @@
 #include <soc.h>
 #include <zephyr/sys/sys_io.h>
 #include <zephyr/drivers/gpio/gpio_utils.h>
+#include <zephyr/drivers/clock_control.h>
 
 typedef void (*config_func_t)(const struct device *dev);
 
@@ -23,6 +25,10 @@ struct gpio_stellaris_config {
 	uint32_t base;
 	uint32_t port_map;
 	config_func_t config_func;
+#ifdef CONFIG_CLOCK_CONTROL
+	const struct device *clk;
+	const struct tm4c_clk_id clk_id;
+#endif /* ifdef CONFIG_CLOCK_CONTROL */
 };
 
 struct gpio_stellaris_runtime {
@@ -232,6 +238,19 @@ static int gpio_stellaris_init(const struct device *dev)
 {
 	const struct gpio_stellaris_config *cfg = dev->config;
 
+#ifdef CONFIG_CLOCK_CONTROL
+	if (!device_is_ready(cfg->clk)) {
+		return -ENODEV;
+	}
+
+	int ret = clock_control_on(cfg->clk, (clock_control_subsys_t)&cfg->clk_id);
+
+	if (ret) {
+		return ret;
+	}
+#endif
+
+	/* Proceed with other configuration of the peripheral */
 	cfg->config_func(dev);
 	return 0;
 }
@@ -261,36 +280,38 @@ static DEVICE_API(gpio, gpio_stellaris_driver_api) = {
 	.manage_callback = gpio_stellaris_manage_callback,
 };
 
-#define STELLARIS_GPIO_DEVICE(n)							\
-	static void port_## n ##_stellaris_config_func(const struct device *dev);		\
-											\
-	static struct gpio_stellaris_runtime port_## n ##_stellaris_runtime;		\
-											\
-	static const struct gpio_stellaris_config gpio_stellaris_port_## n ##_config = {\
-		.common = {								\
-			.port_pin_mask = GPIO_PORT_PIN_MASK_FROM_DT_INST(n),		\
-		},									\
-		.base = DT_INST_REG_ADDR(n),			\
-		.port_map = BIT_MASK(DT_INST_PROP(n, ngpios)),		\
-		.config_func = port_## n ##_stellaris_config_func,			\
-	};										\
-											\
-	DEVICE_DT_INST_DEFINE(n,							\
-			    gpio_stellaris_init,					\
-			    NULL,							\
-			    &port_## n ##_stellaris_runtime,				\
-			    &gpio_stellaris_port_## n ##_config,			\
-			    POST_KERNEL, CONFIG_GPIO_INIT_PRIORITY,			\
-			    &gpio_stellaris_driver_api);				\
-											\
-	static void port_## n ##_stellaris_config_func(const struct device *dev)		\
-	{										\
-		IRQ_CONNECT(DT_INST_IRQN(n),			\
-			    DT_INST_IRQ(n, priority),		\
-			    gpio_stellaris_isr,						\
-			    DEVICE_DT_INST_GET(n), 0);					\
-											\
-		irq_enable(DT_INST_IRQN(n));			\
+#define GPIO_STELLARIS_CLK_FIELDS(inst)                                                            \
+	COND_CODE_1(CONFIG_CLOCK_CONTROL, \
+		(.clk = DEVICE_DT_GET(DT_INST_CLOCKS_CTLR(inst)), \
+		 .clk_id = tm4c_clk_id_##inst,), \
+		())
+
+#define STELLARIS_GPIO_DEVICE(n)                                                                   \
+	static void port_##n##_stellaris_config_func(const struct device *dev);                    \
+                                                                                                   \
+	static struct gpio_stellaris_runtime port_##n##_stellaris_runtime;                         \
+                                                                                                   \
+	TM4C_CLK_ID_FROM_INST(n)                                                                   \
+	static const struct gpio_stellaris_config gpio_stellaris_port_##n##_config = {             \
+		.common =                                                                          \
+			{                                                                          \
+				.port_pin_mask = GPIO_PORT_PIN_MASK_FROM_DT_INST(n),               \
+			},                                                                         \
+		.base = DT_INST_REG_ADDR(n),                                                       \
+		.port_map = BIT_MASK(DT_INST_PROP(n, ngpios)),                                     \
+		.config_func = port_##n##_stellaris_config_func,                                   \
+		GPIO_STELLARIS_CLK_FIELDS(n)};                                                     \
+                                                                                                   \
+	DEVICE_DT_INST_DEFINE(n, gpio_stellaris_init, NULL, &port_##n##_stellaris_runtime,         \
+			      &gpio_stellaris_port_##n##_config, POST_KERNEL,                      \
+			      CONFIG_GPIO_INIT_PRIORITY, &gpio_stellaris_driver_api);              \
+                                                                                                   \
+	static void port_##n##_stellaris_config_func(const struct device *dev)                     \
+	{                                                                                          \
+		IRQ_CONNECT(DT_INST_IRQN(n), DT_INST_IRQ(n, priority), gpio_stellaris_isr,         \
+			    DEVICE_DT_INST_GET(n), 0);                                             \
+                                                                                                   \
+		irq_enable(DT_INST_IRQN(n));                                                       \
 	}
 
 DT_INST_FOREACH_STATUS_OKAY(STELLARIS_GPIO_DEVICE)
