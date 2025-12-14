@@ -39,11 +39,9 @@ struct gpio_stellaris_runtime {
 
 #define GPIO_REG_ADDR(base, offset) (base + offset)
 
-#define GPIO_RW_ADDR(base, offset, p)			 \
-	(GPIO_REG_ADDR(base, offset) | (1 << (p + 2)))
+#define GPIO_RW_ADDR(base, offset, p) (GPIO_REG_ADDR(base, offset) | (1 << (p + 2)))
 
-#define GPIO_RW_MASK_ADDR(base, offset, mask)		 \
-	(GPIO_REG_ADDR(base, offset) | (mask << 2))
+#define GPIO_RW_MASK_ADDR(base, offset, mask) (GPIO_REG_ADDR(base, offset) | (mask << 2))
 
 enum gpio_regs {
 	GPIO_DATA_OFFSET = 0x000,
@@ -59,7 +57,7 @@ enum gpio_regs {
 
 static void gpio_stellaris_isr(const struct device *dev)
 {
-	const struct gpio_stellaris_config * const cfg = dev->config;
+	const struct gpio_stellaris_config *const cfg = dev->config;
 	struct gpio_stellaris_runtime *context = dev->data;
 	uint32_t base = cfg->base;
 	uint32_t int_stat = sys_read32(GPIO_REG_ADDR(base, GPIO_MIS_OFFSET));
@@ -69,8 +67,7 @@ static void gpio_stellaris_isr(const struct device *dev)
 	sys_write32(int_stat, GPIO_REG_ADDR(base, GPIO_ICR_OFFSET));
 }
 
-static int gpio_stellaris_configure(const struct device *dev,
-				    gpio_pin_t pin, gpio_flags_t flags)
+static int gpio_stellaris_configure(const struct device *dev, gpio_pin_t pin, gpio_flags_t flags)
 {
 	const struct gpio_stellaris_config *cfg = dev->config;
 	uint32_t base = cfg->base;
@@ -114,9 +111,8 @@ static int gpio_stellaris_configure(const struct device *dev,
 }
 
 #ifdef CONFIG_GPIO_GET_CONFIG
-static int gpio_stellaris_get_config(const struct device *dev,
-				 gpio_pin_t pin,
-				 gpio_flags_t *out_flags)
+static int gpio_stellaris_get_config(const struct device *dev, gpio_pin_t pin,
+				     gpio_flags_t *out_flags)
 {
 	const struct gpio_stellaris_config *cfg = dev->config;
 	uint32_t base = cfg->base;
@@ -141,8 +137,7 @@ static int gpio_stellaris_get_config(const struct device *dev,
 }
 #endif
 
-static int gpio_stellaris_port_get_raw(const struct device *dev,
-				       uint32_t *value)
+static int gpio_stellaris_port_get_raw(const struct device *dev, uint32_t *value)
 {
 	const struct gpio_stellaris_config *cfg = dev->config;
 	uint32_t base = cfg->base;
@@ -152,8 +147,7 @@ static int gpio_stellaris_port_get_raw(const struct device *dev,
 	return 0;
 }
 
-static int gpio_stellaris_port_set_masked_raw(const struct device *dev,
-					      uint32_t mask,
+static int gpio_stellaris_port_set_masked_raw(const struct device *dev, uint32_t mask,
 					      uint32_t value)
 {
 	const struct gpio_stellaris_config *cfg = dev->config;
@@ -164,8 +158,7 @@ static int gpio_stellaris_port_set_masked_raw(const struct device *dev,
 	return 0;
 }
 
-static int gpio_stellaris_port_set_bits_raw(const struct device *dev,
-					    uint32_t mask)
+static int gpio_stellaris_port_set_bits_raw(const struct device *dev, uint32_t mask)
 {
 	const struct gpio_stellaris_config *cfg = dev->config;
 	uint32_t base = cfg->base;
@@ -175,8 +168,7 @@ static int gpio_stellaris_port_set_bits_raw(const struct device *dev,
 	return 0;
 }
 
-static int gpio_stellaris_port_clear_bits_raw(const struct device *dev,
-					      uint32_t mask)
+static int gpio_stellaris_port_clear_bits_raw(const struct device *dev, uint32_t mask)
 {
 	const struct gpio_stellaris_config *cfg = dev->config;
 	uint32_t base = cfg->base;
@@ -186,8 +178,7 @@ static int gpio_stellaris_port_clear_bits_raw(const struct device *dev,
 	return 0;
 }
 
-static int gpio_stellaris_port_toggle_bits(const struct device *dev,
-					   uint32_t mask)
+static int gpio_stellaris_port_toggle_bits(const struct device *dev, uint32_t mask)
 {
 	const struct gpio_stellaris_config *cfg = dev->config;
 	uint32_t base = cfg->base;
@@ -200,10 +191,8 @@ static int gpio_stellaris_port_toggle_bits(const struct device *dev,
 	return 0;
 }
 
-static int gpio_stellaris_pin_interrupt_configure(const struct device *dev,
-						  gpio_pin_t pin,
-						  enum gpio_int_mode mode,
-						  enum gpio_int_trig trig)
+static int gpio_stellaris_pin_interrupt_configure(const struct device *dev, gpio_pin_t pin,
+						  enum gpio_int_mode mode, enum gpio_int_trig trig)
 {
 	const struct gpio_stellaris_config *cfg = dev->config;
 	uint32_t base = cfg->base;
@@ -224,8 +213,7 @@ static int gpio_stellaris_pin_interrupt_configure(const struct device *dev,
 		} else if (trig == GPIO_INT_TRIG_HIGH) {
 			sys_set_bit(GPIO_REG_ADDR(base, GPIO_IEV_OFFSET), pin);
 		} else {
-			sys_clear_bit(GPIO_REG_ADDR(base,
-						    GPIO_IEV_OFFSET), pin);
+			sys_clear_bit(GPIO_REG_ADDR(base, GPIO_IEV_OFFSET), pin);
 		}
 		/* Clear the Mask to enable the interrupt */
 		sys_clear_bit(GPIO_REG_ADDR(base, GPIO_IM_OFFSET), pin);
@@ -255,8 +243,7 @@ static int gpio_stellaris_init(const struct device *dev)
 	return 0;
 }
 
-static int gpio_stellaris_manage_callback(const struct device *dev,
-					  struct gpio_callback *callback,
+static int gpio_stellaris_manage_callback(const struct device *dev, struct gpio_callback *callback,
 					  bool set)
 {
 	struct gpio_stellaris_runtime *context = dev->data;
